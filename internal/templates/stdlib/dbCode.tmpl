@@ -80,6 +80,9 @@ type Queries struct {
     {{- if not .EmitMethodsWithDBArgument}}
 	db DBTX
     {{- end}}
+	logger             *zap.Logger
+	SlowQueryThreshold time.Duration
+	txID               string
 
     {{- if .EmitPreparedQueries}}
 	tx         *sql.Tx
@@ -92,7 +95,10 @@ type Queries struct {
 {{if not .EmitMethodsWithDBArgument}}
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db: tx,
+		db:                 tx,
+		logger:             q.logger,
+		SlowQueryThreshold: q.SlowQueryThreshold,
+		txID:               fmt.Sprintf("%p", tx),
      	{{- if .EmitPreparedQueries}}
 		tx: tx,
 		{{- range .GoQueries}}
@@ -102,4 +108,80 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	}
 }
 {{end}}
+
+func (q *Queries) logQuery(query string, params []zap.Field, err error, start time.Time) {
+	if q.logger == nil {
+		return
+	}
+
+	duration := time.Since(start)
+	fields := make([]zap.Field, 0, len(params)+4)
+	fields = append(fields,
+		zap.Time("ts", start),
+		zap.String("sql", query),
+	)
+	if q.txID != "" {
+		fields = append(fields, zap.String("txID", q.txID))
+	}
+	fields = append(fields, params...)
+	fields = append(fields, zap.Duration("duration", duration))
+	if err != nil {
+		fields = append(fields, zap.Error(err))
+	}
+
+	if q.SlowQueryThreshold > 0 && duration > q.SlowQueryThreshold {
+		q.logger.Warn("slow query", fields...)
+		return
+	}
+	if err != nil {
+		q.logger.Error("query failed", fields...)
+		return
+	}
+	q.logger.Info("query", fields...)
+}
+{{template "zapNullHelpers" .}}
+{{end}}
+
+{{define "zapNullHelpers"}}
+func zapNullString(key string, v sql.NullString) zap.Field {
+	if v.Valid {
+		return zap.String(key, v.String)
+	}
+	return zap.String(key, "<nil>")
+}
+
+func zapNullBool(key string, v sql.NullBool) zap.Field {
+	if v.Valid {
+		return zap.Bool(key, v.Bool)
+	}
+	return zap.String(key, "<nil>")
+}
+
+func zapNullInt32(key string, v sql.NullInt32) zap.Field {
+	if v.Valid {
+		return zap.Int32(key, v.Int32)
+	}
+	return zap.String(key, "<nil>")
+}
+
+func zapNullInt64(key string, v sql.NullInt64) zap.Field {
+	if v.Valid {
+		return zap.Int64(key, v.Int64)
+	}
+	return zap.String(key, "<nil>")
+}
+
+func zapNullFloat64(key string, v sql.NullFloat64) zap.Field {
+	if v.Valid {
+		return zap.Float64(key, v.Float64)
+	}
+	return zap.String(key, "<nil>")
+}
+
+func zapNullTime(key string, v sql.NullTime) zap.Field {
+	if v.Valid {
+		return zap.Time(key, v.Time)
+	}
+	return zap.String(key, "<nil>")
+}
 {{end}}

@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 	"github.com/sqlc-dev/plugin-sdk-go/metadata"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 )
 
 type fileImports struct {
@@ -134,9 +134,9 @@ func (i *importer) dbImports() fileImports {
 		pkg = append(pkg, ImportSpec{Path: "github.com/jackc/pgx/v5"})
 	default:
 		std = append(std, ImportSpec{Path: "database/sql"})
-		if i.Options.EmitPreparedQueries {
-			std = append(std, ImportSpec{Path: "fmt"})
-		}
+		std = append(std, ImportSpec{Path: "fmt"})
+		std = append(std, ImportSpec{Path: "time"})
+		pkg = append(pkg, ImportSpec{Path: "go.uber.org/zap"})
 	}
 
 	sort.Slice(std, func(i, j int) bool { return std[i].Path < std[j].Path })
@@ -395,6 +395,10 @@ func (i *importer) queryImports(filename string) fileImports {
 	}
 
 	sqlpkg := parseDriver(i.Options.SqlPackage)
+	if !sqlpkg.IsPGX() {
+		std["time"] = struct{}{}
+		pkg[ImportSpec{Path: "go.uber.org/zap"}] = struct{}{}
+	}
 	if sqlcSliceScan() && !sqlpkg.IsPGX() {
 		std["strings"] = struct{}{}
 	}

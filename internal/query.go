@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 	"github.com/sqlc-dev/plugin-sdk-go/metadata"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 )
 
 type QueryValue struct {
@@ -267,6 +267,125 @@ type Query struct {
 	Arg          QueryValue
 	// Used for :copyfrom
 	Table *plugin.Identifier
+}
+
+type ZapParam struct {
+	Key      string
+	Value    string
+	Func     string
+	IsHelper bool
+}
+
+func (q Query) ZapParams() []ZapParam {
+	return zapParams(q.Arg)
+}
+
+func zapParams(val QueryValue) []ZapParam {
+	if val.isEmpty() {
+		return nil
+	}
+
+	if val.Struct == nil {
+		fn := zapFieldFunc(val.DefineType())
+		return []ZapParam{{
+			Key:      zapParamKey(val.DBName, val.Name),
+			Value:    escape(val.Name),
+			Func:     fn,
+			IsHelper: strings.HasPrefix(fn, "zapNull"),
+		}}
+	}
+
+	params := make([]ZapParam, 0, len(val.Struct.Fields))
+	for _, field := range val.UniqueFields() {
+		fn := zapFieldFunc(field.Type)
+		params = append(params, ZapParam{
+			Key:      zapParamKey(field.DBName, field.Name),
+			Value:    val.VariableForField(field),
+			Func:     fn,
+			IsHelper: strings.HasPrefix(fn, "zapNull"),
+		})
+	}
+	return params
+}
+
+func zapParamKey(dbName, fallback string) string {
+	if dbName != "" {
+		return dbName
+	}
+	return fallback
+}
+
+func zapFieldFunc(goType string) string {
+	typ := strings.TrimSpace(goType)
+	if typ == "" {
+		return "zap.Any"
+	}
+	if strings.HasPrefix(typ, "*") {
+		return "zap.Any"
+	}
+	if strings.HasPrefix(typ, "[]") {
+		base := strings.TrimPrefix(typ, "[]")
+		if strings.HasPrefix(base, "*") {
+			return "zap.Any"
+		}
+		if base == "byte" || base == "uint8" {
+			return "zap.ByteString"
+		}
+		return "zap.Any"
+	}
+
+	switch typ {
+	case "sql.NullString":
+		return "zapNullString"
+	case "sql.NullBool":
+		return "zapNullBool"
+	case "sql.NullInt32":
+		return "zapNullInt32"
+	case "sql.NullInt64":
+		return "zapNullInt64"
+	case "sql.NullFloat64":
+		return "zapNullFloat64"
+	case "sql.NullTime":
+		return "zapNullTime"
+	case "string":
+		return "zap.String"
+	case "bool":
+		return "zap.Bool"
+	case "int":
+		return "zap.Int"
+	case "int8":
+		return "zap.Int8"
+	case "int16":
+		return "zap.Int16"
+	case "int32":
+		return "zap.Int32"
+	case "int64":
+		return "zap.Int64"
+	case "uint":
+		return "zap.Uint"
+	case "uint8":
+		return "zap.Uint8"
+	case "uint16":
+		return "zap.Uint16"
+	case "uint32":
+		return "zap.Uint32"
+	case "uint64":
+		return "zap.Uint64"
+	case "uintptr":
+		return "zap.Uintptr"
+	case "float32":
+		return "zap.Float32"
+	case "float64":
+		return "zap.Float64"
+	case "time.Time":
+		return "zap.Time"
+	case "time.Duration":
+		return "zap.Duration"
+	case "error":
+		return "zap.Error"
+	default:
+		return "zap.Any"
+	}
 }
 
 func (q Query) hasRetType() bool {

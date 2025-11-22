@@ -1,1 +1,4 @@
 bin
+globalcfg
+sql
+sqlc.yaml
