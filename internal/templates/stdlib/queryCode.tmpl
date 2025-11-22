@@ -132,14 +132,14 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 {{end}}
 
 {{end}}
-{{template "zapNullHelpers" .}}
+
 {{define "zapLogFields"}}
     var logFields []zap.Field
     var start time.Time
-    {{- if ne (len .ZapParams) 0}}
     if q.logger != nil {
         logFields = make([]zap.Field, 0, {{- len .ZapParams}} + 5)
         start = time.Now()
+        {{- if ne (len .ZapParams) 0}}
         {{- $params := .ZapParams }}
         {{- if $params }}
         logFields = append(logFields,
@@ -148,8 +148,8 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
             {{- end}}
         )
         {{- end}}
+        {{- end}}
     }
-    {{- end}}
 {{end}}
 
 {{define "queryCodeStdExec"}}

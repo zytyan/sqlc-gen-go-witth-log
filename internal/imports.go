@@ -134,7 +134,9 @@ func (i *importer) dbImports() fileImports {
 		pkg = append(pkg, ImportSpec{Path: "github.com/jackc/pgx/v5"})
 	default:
 		std = append(std, ImportSpec{Path: "database/sql"})
-		std = append(std, ImportSpec{Path: "fmt"})
+		if !i.Options.EmitMethodsWithDbArgument || i.Options.EmitPreparedQueries {
+			std = append(std, ImportSpec{Path: "fmt"})
+		}
 		std = append(std, ImportSpec{Path: "time"})
 		pkg = append(pkg, ImportSpec{Path: "go.uber.org/zap"})
 	}
