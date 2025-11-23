@@ -66,6 +66,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
         q.logQuery({{.ConstantName}}, logFields, err, start)
         return nil, err
     }
+    q.logQuery({{.ConstantName}}, logFields, err, start)
     return items, nil
 }
 {{end}}
