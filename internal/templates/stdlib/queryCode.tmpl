@@ -40,8 +40,10 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}) ([]{{.Ret.DefineType}}, error) {
     {{- template "zapLogFields" . }}
     {{- template "queryCodeStdExec" . }}
-    if err != nil {
+    defer func() {
         q.logQuery({{.ConstantName}}, logFields, err, start)
+    }()
+    if err != nil {
         return nil, err
     }
     defer rows.Close()
@@ -53,20 +55,16 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     for rows.Next() {
         var {{.Ret.Name}} {{.Ret.Type}}
         if err = rows.Scan({{.Ret.Scan}}); err != nil {
-            q.logQuery({{.ConstantName}}, logFields, err, start)
             return nil, err
         }
         items = append(items, {{.Ret.ReturnName}})
     }
     if err = rows.Close(); err != nil {
-        q.logQuery({{.ConstantName}}, logFields, err, start)
         return nil, err
     }
     if err = rows.Err(); err != nil {
-        q.logQuery({{.ConstantName}}, logFields, err, start)
         return nil, err
     }
-    q.logQuery({{.ConstantName}}, logFields, err, start)
     return items, nil
 }
 {{end}}

@@ -138,6 +138,7 @@ func (i *importer) dbImports() fileImports {
 			std = append(std, ImportSpec{Path: "fmt"})
 		}
 		std = append(std, ImportSpec{Path: "time"})
+		std = append(std, ImportSpec{Path: "errors"})
 		pkg = append(pkg, ImportSpec{Path: "go.uber.org/zap"})
 	}
 
