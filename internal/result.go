@@ -6,11 +6,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
-	"github.com/sqlc-dev/plugin-sdk-go/sdk"
-	"github.com/sqlc-dev/sqlc-gen-go/internal/inflection"
 	"github.com/sqlc-dev/plugin-sdk-go/metadata"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
+	"github.com/sqlc-dev/plugin-sdk-go/sdk"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/inflection"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 )
 
 func buildEnums(req *plugin.GenerateRequest, options *opts.Options) []Enum {
@@ -94,12 +94,15 @@ func buildStructs(req *plugin.GenerateRequest, options *opts.Options) []Struct {
 					tags["json"] = JSONTagName(column.Name, options)
 				}
 				addExtraGoStructTags(tags, req, options, column)
-				s.Fields = append(s.Fields, Field{
+				f := Field{
 					Name:    StructName(column.Name, options),
 					Type:    goType(req, options, column),
 					Tags:    tags,
 					Comment: column.Comment,
-				})
+					Column:  column,
+				}
+				applyZapOverrides(&f, req, options, column)
+				s.Fields = append(s.Fields, f)
 			}
 			structs = append(structs, s)
 		}
@@ -232,12 +235,15 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []
 
 		if len(query.Params) == 1 && qpl != 0 {
 			p := query.Params[0]
+			zapFieldMethod, zapObject := zapOverride(req, options, p.Column)
 			gq.Arg = QueryValue{
-				Name:      escape(paramName(p)),
-				DBName:    p.Column.GetName(),
-				Typ:       goType(req, options, p.Column),
-				SQLDriver: sqlpkg,
-				Column:    p.Column,
+				Name:           escape(paramName(p)),
+				DBName:         p.Column.GetName(),
+				Typ:            goType(req, options, p.Column),
+				SQLDriver:      sqlpkg,
+				Column:         p.Column,
+				ZapFieldMethod: zapFieldMethod,
+				ZapObject:      zapObject,
 			}
 		} else if len(query.Params) >= 1 {
 			var cols []goColumn
@@ -402,6 +408,7 @@ func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name st
 			f.Type = c.embed.modelType
 			f.EmbedFields = c.embed.fields
 		}
+		applyZapOverrides(&f, req, options, c.Column)
 
 		gs.Fields = append(gs.Fields, f)
 		if _, found := seen[baseFieldName]; !found {
@@ -447,4 +454,61 @@ func checkIncompatibleFieldTypes(fields []Field) error {
 		}
 	}
 	return nil
+}
+
+func applyZapOverrides(f *Field, req *plugin.GenerateRequest, options *opts.Options, col *plugin.Column) {
+	if col == nil {
+		return
+	}
+	fieldMethod, zapObject := zapOverride(req, options, col)
+	f.ZapFieldMethod = fieldMethod
+	f.ZapObject = zapObject
+}
+
+func zapOverride(req *plugin.GenerateRequest, options *opts.Options, col *plugin.Column) (bool, bool) {
+	var zapFieldMethod bool
+	var zapObject bool
+
+	if col == nil {
+		return false, false
+	}
+
+	colName := col.Name
+	if col.OriginalName != "" {
+		colName = col.OriginalName
+	}
+	colType := sdk.DataType(col.Type)
+	notNull := col.NotNull || col.IsArray
+
+	for _, override := range options.Overrides {
+		oride := override.ShimOverride
+		if oride == nil {
+			continue
+		}
+
+		var matches bool
+		switch {
+		case oride.Column != "":
+			if override.Matches(col.Table, req.Catalog.DefaultSchema) && sdk.MatchString(oride.ColumnName, colName) {
+				matches = true
+			}
+		case oride.DbType != "":
+			if oride.DbType == colType && oride.Nullable != notNull && oride.Unsigned == col.Unsigned {
+				matches = true
+			}
+		}
+
+		if !matches {
+			continue
+		}
+
+		if oride.ZapFieldMethod {
+			zapFieldMethod = true
+		}
+		if oride.ZapObject {
+			zapObject = true
+		}
+	}
+
+	return zapFieldMethod, zapObject
 }

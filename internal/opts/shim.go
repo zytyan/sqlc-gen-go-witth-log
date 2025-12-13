@@ -12,13 +12,15 @@ import (
 // GoType structs, but it's easier to provide these shim structs to not change
 // the existing, working code.
 type ShimOverride struct {
-	DbType     string
-	Nullable   bool
-	Column     string
-	Table      *plugin.Identifier
-	ColumnName string
-	Unsigned   bool
-	GoType     *ShimGoType
+	DbType         string
+	Nullable       bool
+	Column         string
+	Table          *plugin.Identifier
+	ColumnName     string
+	Unsigned       bool
+	GoType         *ShimGoType
+	ZapFieldMethod bool
+	ZapObject      bool
 }
 
 func shimOverride(req *plugin.GenerateRequest, o *Override) *ShimOverride {
@@ -44,13 +46,15 @@ func shimOverride(req *plugin.GenerateRequest, o *Override) *ShimOverride {
 		}
 	}
 	return &ShimOverride{
-		DbType:     o.DBType,
-		Nullable:   o.Nullable,
-		Unsigned:   o.Unsigned,
-		Column:     o.Column,
-		ColumnName: column,
-		Table:      &table,
-		GoType:     shimGoType(o),
+		DbType:         o.DBType,
+		Nullable:       o.Nullable,
+		Unsigned:       o.Unsigned,
+		Column:         o.Column,
+		ColumnName:     column,
+		Table:          &table,
+		GoType:         shimGoType(o),
+		ZapFieldMethod: o.ZapFieldMethod,
+		ZapObject:      o.ZapObject,
 	}
 }
 

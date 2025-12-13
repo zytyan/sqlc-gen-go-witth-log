@@ -21,6 +21,9 @@ type QueryValue struct {
 	// Column is kept so late in the generation process around to differentiate
 	// between mysql slices and pg arrays
 	Column *plugin.Column
+
+	ZapFieldMethod bool
+	ZapObject      bool
 }
 
 func (v QueryValue) EmitStruct() bool {
@@ -270,10 +273,13 @@ type Query struct {
 }
 
 type ZapParam struct {
-	Key      string
-	Value    string
-	Func     string
-	IsHelper bool
+	Key            string
+	Value          string
+	Func           string
+	IsHelper       bool
+	ZapFieldMethod bool
+	ZapObject      bool
+	Nullable       bool
 }
 
 func (q Query) ZapParams() []ZapParam {
@@ -287,22 +293,46 @@ func zapParams(val QueryValue) []ZapParam {
 
 	if val.Struct == nil {
 		fn := zapFieldFunc(val.DefineType())
+		nullable := val.Column != nil && !val.Column.NotNull
 		return []ZapParam{{
-			Key:      zapParamKey(val.DBName, val.Name),
-			Value:    escape(val.Name),
-			Func:     fn,
-			IsHelper: strings.HasPrefix(fn, "zapNull"),
+			Key:            zapParamKey(val.DBName, val.Name),
+			Value:          escape(val.Name),
+			Func:           fn,
+			IsHelper:       strings.HasPrefix(fn, "zapNull"),
+			ZapFieldMethod: val.ZapFieldMethod,
+			ZapObject:      val.ZapObject,
+			Nullable:       nullable,
 		}}
 	}
 
 	params := make([]ZapParam, 0, len(val.Struct.Fields))
 	for _, field := range val.UniqueFields() {
+		if len(field.EmbedFields) > 0 {
+			for _, embed := range field.EmbedFields {
+				fn := zapFieldFunc(embed.Type)
+				nullable := embed.Column != nil && !embed.Column.NotNull
+				params = append(params, ZapParam{
+					Key:            zapParamKey(embed.DBName, embed.Name),
+					Value:          val.VariableForField(field) + "." + embed.Name,
+					Func:           fn,
+					IsHelper:       strings.HasPrefix(fn, "zapNull"),
+					ZapFieldMethod: embed.ZapFieldMethod,
+					ZapObject:      embed.ZapObject,
+					Nullable:       nullable,
+				})
+			}
+			continue
+		}
 		fn := zapFieldFunc(field.Type)
+		nullable := field.Column != nil && !field.Column.NotNull
 		params = append(params, ZapParam{
-			Key:      zapParamKey(field.DBName, field.Name),
-			Value:    val.VariableForField(field),
-			Func:     fn,
-			IsHelper: strings.HasPrefix(fn, "zapNull"),
+			Key:            zapParamKey(field.DBName, field.Name),
+			Value:          val.VariableForField(field),
+			Func:           fn,
+			IsHelper:       strings.HasPrefix(fn, "zapNull"),
+			ZapFieldMethod: field.ZapFieldMethod,
+			ZapObject:      field.ZapObject,
+			Nullable:       nullable,
 		})
 	}
 	return params

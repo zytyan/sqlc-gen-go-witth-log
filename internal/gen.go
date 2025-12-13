@@ -10,10 +10,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
-	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 	"github.com/sqlc-dev/plugin-sdk-go/metadata"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
+	"github.com/sqlc-dev/plugin-sdk-go/sdk"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 )
 
 type tmplCtx struct {
@@ -211,6 +211,8 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 		"imports":    i.Imports,
 		"hasImports": i.HasImports,
 		"hasPrefix":  strings.HasPrefix,
+		"zapField":   zapFieldFunc,
+		"zapKey":     zapParamKey,
 
 		// These methods are Go specific, they do not belong in the codegen package
 		// (as that is language independent)

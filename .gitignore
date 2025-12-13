@@ -2,3 +2,4 @@ bin
 globalcfg
 sql
 sqlc.yaml
+/.idea

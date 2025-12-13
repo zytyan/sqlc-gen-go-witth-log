@@ -10,6 +10,7 @@ type {{.Arg.Type}} struct { {{- range .Arg.UniqueFields}}
   {{.Name}} {{.Type}} {{if .Tag}}{{$.Q}}{{.Tag}}{{$.Q}}{{end}}
   {{- end}}
 }
+
 {{end}}
 
 {{if .Ret.EmitStruct}}
@@ -136,20 +137,37 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     var logFields []zap.Field
     var start time.Time
     if q.logger != nil {
-        logFields = make([]zap.Field, 0, {{- len .ZapParams}} + 5)
+        logFields = make([]zap.Field, 0, 6)
         start = time.Now()
-        {{- if ne (len .ZapParams) 0}}
-        {{- $params := .ZapParams }}
-        {{- if $params }}
+        {{- if ne (len .ZapParams) 0 }}
         logFields = append(logFields,
-            {{- range $params }}
-            {{.Func}}("{{.Key}}", {{.Value}}),
-            {{- end}}
+            zap.Dict("fields",
+                {{- range .ZapParams }}
+                {{- template "zapParamField" . -}},
+                {{- end }}
+            ),
         )
-        {{- end}}
-        {{- end}}
+        {{- else }}
+        logFields = append(logFields, zap.Dict("fields"))
+        {{- end }}
     }
 {{end}}
+
+{{- define "zapParamField"}}
+    {{- if .ZapFieldMethod }}
+        {{- if .Nullable }}
+            zapNullOf("{{.Key}}", {{.Value}})
+        {{- else }}
+            {{.Value}}.ZapObject("{{.Key}}")
+        {{- end }}
+    {{- else if .IsHelper }}
+        {{.Func}}("{{.Key}}", {{.Value}})
+    {{- else if or (eq .Func "") (eq .Func "zap.Any") }}
+        zap.Any("{{.Key}}", {{.Value}})
+    {{- else }}
+        {{.Func}}("{{.Key}}", {{.Value}})
+    {{- end }}
+{{- end}}
 
 {{define "queryCodeStdExec"}}
     {{- if .Arg.HasSqlcSlices }}

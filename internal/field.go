@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 )
 
 type Field struct {
@@ -19,6 +19,10 @@ type Field struct {
 	Column  *plugin.Column
 	// EmbedFields contains the embedded fields that require scanning.
 	EmbedFields []Field
+	// ZapFieldMethod indicates this field uses a custom zap logging method defined by overrides.
+	ZapFieldMethod bool
+	// ZapObject signals the zap_field_method should call ZapObject() instead of AddZapObject(...).
+	ZapObject bool
 }
 
 func (gf Field) Tag() string {

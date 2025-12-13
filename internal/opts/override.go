@@ -36,6 +36,12 @@ type Override struct {
 	// fully qualified name of the column, e.g. `accounts.id`
 	Column string `json:"column" yaml:"column"`
 
+	// True if emit zap file by call `Type.ZapField()`
+	ZapFieldMethod bool `json:"zap_field_method" yaml:"zap_field_method"`
+
+	// True if zap_field_method should call ZapObject(key string) instead of standard zap.* field constructors.
+	ZapObject bool `json:"zap_object" yaml:"zap_object"`
+
 	ColumnName   *pattern.Match `json:"-"`
 	TableCatalog *pattern.Match `json:"-"`
 	TableSchema  *pattern.Match `json:"-"`
