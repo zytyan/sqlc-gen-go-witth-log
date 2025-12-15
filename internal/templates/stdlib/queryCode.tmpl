@@ -30,7 +30,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 	var {{.Ret.Name}} {{.Ret.Type}}
 	{{- end}}
 	err := row.Scan({{.Ret.Scan}})
-	q.logQuery({{.ConstantName}}, logFields, err, start)
+	q.logQuery("{{.MethodName}}", logFields, err, start)
 	return {{.Ret.ReturnName}}, err
 }
 {{end}}
@@ -42,7 +42,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     {{- template "zapLogFields" . }}
     {{- template "queryCodeStdExec" . }}
     defer func() {
-        q.logQuery({{.ConstantName}}, logFields, err, start)
+        q.logQuery("{{.MethodName}}", logFields, err, start)
     }()
     if err != nil {
         return nil, err
@@ -76,7 +76,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}) error {
     {{- template "zapLogFields" . }}
     {{- template "queryCodeStdExec" . }}
-    q.logQuery({{.ConstantName}}, logFields, err, start)
+    q.logQuery("{{.MethodName}}", logFields, err, start)
     return err
 }
 {{end}}
@@ -91,7 +91,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     if err == nil {
         rowsAffected, err = result.RowsAffected()
     }
-    q.logQuery({{.ConstantName}}, logFields, err, start)
+    q.logQuery("{{.MethodName}}", logFields, err, start)
     if err != nil {
         return 0, err
     }
@@ -109,7 +109,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     if err == nil {
         lastInsertID, err = result.LastInsertId()
     }
-    q.logQuery({{.ConstantName}}, logFields, err, start)
+    q.logQuery("{{.MethodName}}", logFields, err, start)
     if err != nil {
         return 0, err
     }
@@ -123,7 +123,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}) (sql.Result, error) {
     {{- template "zapLogFields" . }}
     {{- template "queryCodeStdExec" . }}
-    q.logQuery({{.ConstantName}}, logFields, err, start)
+    q.logQuery("{{.MethodName}}", logFields, err, start)
     return result, err
 }
 {{end}}
