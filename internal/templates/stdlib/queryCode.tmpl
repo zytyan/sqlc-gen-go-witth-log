@@ -30,7 +30,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 	var {{.Ret.Name}} {{.Ret.Type}}
 	{{- end}}
 	err := row.Scan({{.Ret.Scan}})
-	q.logQuery("{{.MethodName}}", logFields, err, start)
+	q.logQuery({{.ConstantName}}, "{{.MethodName}}", logFields, err, start)
 	return {{.Ret.ReturnName}}, err
 }
 {{end}}
@@ -42,7 +42,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     {{- template "zapLogFields" . }}
     {{- template "queryCodeStdExec" . }}
     defer func() {
-        q.logQuery("{{.MethodName}}", logFields, err, start)
+        q.logQuery({{.ConstantName}}, "{{.MethodName}}", logFields, err, start)
     }()
     if err != nil {
         return nil, err
@@ -76,7 +76,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}) error {
     {{- template "zapLogFields" . }}
     {{- template "queryCodeStdExec" . }}
-    q.logQuery("{{.MethodName}}", logFields, err, start)
+    q.logQuery({{.ConstantName}}, "{{.MethodName}}", logFields, err, start)
     return err
 }
 {{end}}
@@ -91,7 +91,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     if err == nil {
         rowsAffected, err = result.RowsAffected()
     }
-    q.logQuery("{{.MethodName}}", logFields, err, start)
+    q.logQuery({{.ConstantName}}, "{{.MethodName}}", logFields, err, start)
     if err != nil {
         return 0, err
     }
@@ -109,7 +109,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     if err == nil {
         lastInsertID, err = result.LastInsertId()
     }
-    q.logQuery("{{.MethodName}}", logFields, err, start)
+    q.logQuery({{.ConstantName}}, "{{.MethodName}}", logFields, err, start)
     if err != nil {
         return 0, err
     }
@@ -123,7 +123,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}) (sql.Result, error) {
     {{- template "zapLogFields" . }}
     {{- template "queryCodeStdExec" . }}
-    q.logQuery("{{.MethodName}}", logFields, err, start)
+    q.logQuery({{.ConstantName}}, "{{.MethodName}}", logFields, err, start)
     return result, err
 }
 {{end}}
@@ -137,19 +137,21 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
     var logFields []zap.Field
     var start time.Time
     if q.logger != nil {
-        logFields = make([]zap.Field, 0, 6)
+        logFields = make([]zap.Field, 0, 8)
         start = time.Now()
+        if q.LogArgument {
         {{- if ne (len .ZapParams) 0 }}
-        logFields = append(logFields,
-            zap.Dict("fields",
-                {{- range .ZapParams }}
-                {{- template "zapParamField" . -}},
-                {{- end }}
-            ),
-        )
+            logFields = append(logFields,
+                zap.Dict("fields",
+                    {{- range .ZapParams }}
+                    {{- template "zapParamField" . -}},
+                    {{- end }}
+                ),
+            )
         {{- else }}
-        logFields = append(logFields, zap.Dict("fields"))
+            logFields = append(logFields, zap.Dict("fields"))
         {{- end }}
+        }
     }
 {{end}}
 
